@@ -22,6 +22,9 @@ void FixActivePolyForce::post_force(int) {
     double** x = atom->x;
     double** f = atom->f;
 
-    int** molecule = neighbor->bondlist;
-    assert(neighbor->nbondlist == AP::N);
+    int atom_id[AP::N]; // the ids of the atoms in the current molecule
+
+    for (int i = 0; i < atom->nlocal; ++i) {
+        
+    }
 }

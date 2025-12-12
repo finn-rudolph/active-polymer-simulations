@@ -8,3 +8,9 @@ sudo make install
 
 1. Set the environment variable ´LAMMPS_DIR´ to the directory of the LAMMPS repository
    (i.e. it should have subdirectories src, build, etc.)
+
+## Force computation
+
+Do each atom individually. If we can get the ordered list of atoms of a molecule,
+e.g. via the neighbor list of the reference atom, then just go over this and compute
+the differences again each time. Via constant folding we can optimize this a bit.
