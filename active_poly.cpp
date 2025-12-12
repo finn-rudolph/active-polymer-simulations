@@ -1,18 +1,48 @@
 #include <mpi.h>
-#include <stdio.h>
+
+#include <format>
+#include <fstream>
+#include <iostream>
+#include <string>
+
+#include "active_poly_constants.h"
+
+using namespace std;
 
 #define LAMMPS_LIB_MPI
 #include "lammps/library.h"
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
-
     void* lmp = lammps_open(0, 0, MPI_COMM_WORLD, 0);
 
+    auto cmd = [&lmp](string const& s) {
+        lammps_command(lmp, s.c_str());
+    };
+
+    // create molecule file
+    ofstream molecule_file("active_poly.txt");
+
+    molecule_file << format("{} atoms\n\n", AP::N);
+    molecule_file << "Coords\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}   {}.0 0.0 0.0\n", i, i - 1);
+
+    molecule_file << "\nTypes\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}   1\n", i);
+
+    molecule_file.close();
+
+    // basic setup
+    cmd(format("dimension {}", AP::d));
+    cmd("units lj");
+
+    cmd("molecule ");
+    // cmd("atom_style template");
+    cmd("create_atoms 0 region R mol active_poly 42");
+
     lammps_commands_string(lmp,
-                           "dimension 3\n"
-                           "units lj\n"
-                           "\n"
                            "# Parameters\n"
                            "variable rho      equal 0.2\n"
                            "variable T        equal 1.0\n"

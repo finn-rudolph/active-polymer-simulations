@@ -1,2 +1,2 @@
-active_3d: active_3d.cpp
-	g++ -g -Wall active_3d.cpp -o active_3d -llammps -lmpi 
+active_3d: active_poly.cpp
+	g++ -std=c++20 -g -Wall active_poly.cpp -o active_poly -llammps -lmpi 
