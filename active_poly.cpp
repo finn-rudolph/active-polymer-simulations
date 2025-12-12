@@ -24,21 +24,34 @@ int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
     void* lmp = lammps_open(0, 0, MPI_COMM_WORLD, 0);
 
-    // auto cmd = [&lmp](string const& s) {
-    //     lammps_command(lmp, s.c_str());
-    // };
-
     // create molecule file
     ofstream molecule_file("active_poly.txt");
 
-    molecule_file << format("\n{} atoms\n\n", AP::N);
-    molecule_file << "Coords\n\n";
+    molecule_file << format(
+        "\n"
+        "{} atoms\n"
+        "{} bonds\n",
+        AP::N, AP::N - 1);
+
+    molecule_file << "\nCoords\n\n";
     for (int i = 1; i <= AP::N; ++i)
         molecule_file << format("{}   {}.0 0.0 0.0\n", i, i - 1);
 
+    // Atom 1 is the "reference atom" in the molecule, which is used as the
+    // origin of the local coordinate system. It has type 2, all other atoms
+    // have type 1.
     molecule_file << "\nTypes\n\n";
-    for (int i = 1; i <= AP::N; ++i)
+    molecule_file << "1   2\n";
+    for (int i = 2; i <= AP::N; ++i)
         molecule_file << format("{}   1\n", i);
+
+    // The molecule is a chain with the type 2 atom at one end. The chain
+    // structure is useful to keep track of the indices, but there are no 
+    // forces associated to the bonds.
+    // [specific bond ID] [bond type] [atom 1 ID] [atom 2 ID]
+    molecule_file << "\nBonds\n\n";
+    for (int i = 2; i <= AP::N; ++i)
+        molecule_file << format("{}   {} {} {}\n", i - 1, 1, i - 1, i);
 
     molecule_file.close();
 
@@ -46,22 +59,26 @@ int main(int argc, char** argv) {
     cmd("dimension {}", AP::d);
     cmd("units lj");
 
+    cmd("atom_style bond");
+    cmd("bond_style zero");
+    cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant. There is also some newton bonds thing
+    
     cmd("lattice sc {}", rho);
     cmd("region R block 0 {} 0 {} 0 {}", l, l, l);
-
-    // cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant. There is also some newton bonds thing
+    
+    cmd("create_box 2 R bond/types 1 extra/bond/per/atom 2");
     cmd("molecule active_poly active_poly.txt");
-    // cmd("atom_style template");
-    cmd("create_box 1 R");
     cmd("create_atoms 0 region R mol active_poly 42");
 
-    cmd("mass 1 1");
+    cmd("bond_coeff *");
+    cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
     // cmd("pair_style lj/cut {}", sigma);
     // cmd("pair_coeff * * 1 1");
 
-    cmd("fix nve all nve");
-    cmd("fix langevin all langevin {} {} {} 42", T, T, damp_coeff);
+    cmd("fix 1 all nve");
+    cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
+    cmd("fix 3 all active_poly_force");
 
     // This will be necessary when the active force causes a nonzero movement of
     // the center of mass. Then we must tell the langevin fix not to cancel this.
@@ -81,3 +98,5 @@ int main(int argc, char** argv) {
     lammps_close(lmp);
     MPI_Finalize();
 }
+
+// https://matsci.org/t/lammps-users-number-of-atoms-in-molecules/39599
