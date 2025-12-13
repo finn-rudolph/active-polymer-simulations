@@ -14,8 +14,8 @@ using namespace std;
 
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
-constexpr double rho = 0.2;
-constexpr double l = 40;
+constexpr double rho = 0.1;
+constexpr double l = 20;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.5;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     cmd("atom_style bond");
     cmd("bond_style zero");
     cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant.
-    cmd("newton off"); // Try changing this.
+    cmd("newton on off"); // Try changing this.
     
     cmd("lattice sc {}", rho);
     cmd("region R block 0 {} 0 {} 0 {}", l, l, l);

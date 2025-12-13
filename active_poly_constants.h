@@ -4,7 +4,7 @@ namespace AP {
 constexpr int d = 3;
 constexpr int N = 2;  // #atoms per molecule
 
-constexpr std::array<std::array<double, N - 1>, N - 1> Phi = {{-1.0}};
+constexpr std::array<std::array<double, N - 1>, N - 1> Phi = {{-100.0}};
 
 constexpr auto compute_origin_force() {
     std::array<double, N - 1> F_origin = {};

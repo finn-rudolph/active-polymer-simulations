@@ -2,16 +2,16 @@ dimension 3
 units lj
 
 # Parameters
-variable rho      equal 0.2
+variable rho      equal 0.1
 variable T        equal 1.0
-variable length   equal 42
-variable sigma    equal 1.122462048309373 # for LJ potential
+variable length   equal 20
+variable sigma    equal 1.122 # for LJ potential
 variable damp     equal 0.5
 
 # Molecule setup
 atom_style bond
 bond_style harmonic
-comm_modify vel yes cutoff 2.5
+comm_modify vel yes cutoff 2
 # newton bonds thing?
 
 lattice sc ${rho}
@@ -21,7 +21,7 @@ create_box 1 r bond/types 1 extra/bond/per/atom 1
 molecule dumbbell dumbbell.txt
 create_atoms 0 region r mol dumbbell 42
 
-bond_coeff 1 100 1 # the first number is the bond_type (made up by us), which also appears in the molecule file.
+bond_coeff 1 50 0 # the first number is the bond_type (made up by us), which also appears in the molecule file.
 mass 1 1
 # pair_style      lj/cut ${sigma}
 # pair_coeff      * * 1 1
