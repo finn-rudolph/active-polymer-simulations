@@ -6,8 +6,7 @@ sudo make install
 
 ## Setup
 
-1. Set the environment variable ´LAMMPS_DIR´ to the directory of the LAMMPS repository
-   (i.e. it should have subdirectories src, build, etc.)
+1. Set the environment variable ´LAMMPS_DIR´ to the directory of the LAMMPS repository, which should have subdirectories src, build, etc.
 
 ## Force computation
 
@@ -20,3 +19,18 @@ the differences again each time. Via constant folding we can optimize this a bit
 - There are local atom indices and atom tags. For access of any atom data, e.g. position or force, the index is required. The `bond_atoms` array stores the tags.
 
 - Even with one processor, there are ghost atoms and more bonds than there should be. This is due to the periodicity of the simulation box. If a bond crosses the boundary, it does not make sense to use the coordinates lying inside the box for both atoms, because one will be very small and the other very large. Thus (this is how I think it works, not 100% sure) LAMMPS creates two bonds and ghost atoms for every bond crossing the boundary, so the coordinates at the indices given in the bound are correct (relative to each other). As a consequence, one should not use the `bond_atoms` array plus `atom->map` to get the coordinates of the bond partner.
+
+- What I don't understand: With one processor, not every atom occurs in a bond with its _owned_ index.
+    ```
+    for (int i = 0; i < neighbor->nbondlist; ++i) {
+            int o = neighbor->bondlist[i][0];  // reference atom in the molecule
+            int j = neighbor->bondlist[i][1];
+
+            if (o < nlocal) processed[o] = 1;
+            if (j < nlocal) processed[j] = 1;
+    }
+    int nproc = 0;
+    for (int i = 0; i < processed.size(); ++i) nproc += processed[i];
+    printf("nprocessed %d  \n", nproc);
+    ```
+    For 16000 atoms, this prints numbers fluctuating between 15988 and 15998.
