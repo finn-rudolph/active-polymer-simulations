@@ -61,12 +61,13 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant. There is also some newton bonds thing
+    cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant.
+    cmd("newton off"); // Try changing this.
     
     cmd("lattice sc {}", rho);
     cmd("region R block 0 {} 0 {} 0 {}", l, l, l);
     
-    cmd("create_box 2 R bond/types 1 extra/bond/per/atom 2");
+    cmd("create_box 2 R bond/types 1 extra/bond/per/atom {}", AP::N-1);
     cmd("molecule active_poly active_poly.txt");
     cmd("create_atoms 0 region R mol active_poly 42");
 
