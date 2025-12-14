@@ -24,7 +24,9 @@ int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
     void* lmp = lammps_open(0, 0, MPI_COMM_WORLD, 0);
 
-    // create molecule file
+    // Create molecule file. The molecule structure is not really used for
+    // anything, but ensures the total number of atoms is a multiple of N.
+    // The forces are set via the atom tags.
     ofstream molecule_file("active_poly.txt");
 
     molecule_file << format(
@@ -37,18 +39,12 @@ int main(int argc, char** argv) {
     for (int i = 1; i <= AP::N; ++i)
         molecule_file << format("{}   {}.0 0.0 0.0\n", i, i - 1);
 
-    // Atom 1 is the "reference atom" in the molecule, which is used as the
-    // origin of the local coordinate system. It has type 2, all other atoms
-    // have type 1.
     molecule_file << "\nTypes\n\n";
-    molecule_file << "1   2\n";
-    for (int i = 2; i <= AP::N; ++i)
+    for (int i = 1; i <= AP::N; ++i)
         molecule_file << format("{}   1\n", i);
 
-    // The molecule is a chain with the type 2 atom at one end. The chain
-    // structure is useful to keep track of the indices, but there are no 
-    // forces associated to the bonds.
-    // [specific bond ID] [bond type] [atom 1 ID] [atom 2 ID]
+    // The only reason we have bonds is to ensure that all atoms in the molecule
+    // appear as ghost atoms.
     molecule_file << "\nBonds\n\n";
     for (int i = 2; i <= AP::N; ++i)
         molecule_file << format("{}   {} {} {}\n", i - 1, 1, i - 1, i);
@@ -61,13 +57,13 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify vel yes cutoff 2");  // idk whether this is relevant.
-    cmd("newton on off"); // Try changing this.
-    
+    // cmd("comm_modify mode single cutoff 2.5");  // idk whether this is relevant.
+    cmd("newton on off");                       // Try changing this.
+
     cmd("lattice sc {}", rho);
     cmd("region R block 0 {} 0 {} 0 {}", l, l, l);
-    
-    cmd("create_box 2 R bond/types 1 extra/bond/per/atom {}", AP::N-1);
+
+    cmd("create_box 2 R bond/types 1 extra/bond/per/atom 2");
     cmd("molecule active_poly active_poly.txt");
     cmd("create_atoms 0 region R mol active_poly 42");
 

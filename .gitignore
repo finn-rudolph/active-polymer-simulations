@@ -4,3 +4,4 @@ activate.fish
 .vscode
 active_poly
 active_poly.txt
+*.code-workspace

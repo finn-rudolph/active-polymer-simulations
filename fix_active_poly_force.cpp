@@ -1,10 +1,12 @@
 #include "fix_active_poly_force.h"
 
 #include <cassert>
+#include <utility>
 #include <vector>
 
 #include "active_poly_constants.h"
 #include "atom.h"
+#include "domain.h"
 #include "error.h"
 #include "neighbor.h"
 #include "update.h"
@@ -19,80 +21,37 @@ int FixActivePolyForce::setmask() {
     return FixConst::POST_FORCE;
 }
 
+inline double correct_coord(double coord, double reference, double len) {
+    double difference = coord - reference;
+    if (difference > len / 2)
+        return coord - len;
+    else if (difference < -len / 2)
+        return coord + len;
+    return coord;
+}
+
 void FixActivePolyForce::post_force(int) {
     double** x = atom->x;
     double** f = atom->f;
     int nlocal = atom->nlocal;
 
-    std::vector<bool> processed(atom->natoms);
-    int unique_bonds = 0;
-    printf("nbond %d\n", neighbor->nbondlist);
-    for (int i = 0; i < neighbor->nbondlist; ++i) {
-        int o = neighbor->bondlist[i][0];  // reference atom in the molecule
-        int j = neighbor->bondlist[i][1];
+    double box_len[3];
+    for (int d = 0; d < AP::d; ++d)
+        box_len[d] = domain->boxhi[d] - domain->boxlo[d];
 
-        // if (o >= nlocal && j >= nlocal) exit(42);
-        // if (o < nlocal && processed[o]) exit(42); processed[o] = 1;
-        // if (j < nlocal && processed[j]) exit(42); processed[j] = 1;
+    for (int i = 0; i < atom->nlocal; ++i) {
+        int tag = atom->tag[i];
+        int index_in_molecule = (tag - 1) % AP::N;
+        int molecule_begin = tag - index_in_molecule;
 
-        if (atom->type[o] != 2) continue;
-        ++unique_bonds;
-
-        if (j < nlocal) {
-            for (int k = 0; k < AP::N - 1; ++k) {
-                int m = atom->map(atom->bond_atom[o][k]);
-                f[j][0] += AP::Phi[j][k] * (x[m][0] - x[o][0]);
-                f[j][1] += AP::Phi[j][k] * (x[m][1] - x[o][1]);
-                f[j][2] += AP::Phi[j][k] * (x[m][2] - x[o][2]);
-            }
-        }
-
-        // We have to make a choice where to update the reference atom. The
-        // choice is the first bond in the bond list of `o`.
-        if (o < nlocal && atom->bond_atom[o][0] == atom->tag[j]) {
-            for (int k = 0; k < AP::N - 1; ++k) {
-                int m = atom->map(atom->bond_atom[o][k]);
-                f[o][0] += AP::F_origin[k] * (x[m][0] - x[o][0]);
-                f[o][1] += AP::F_origin[k] * (x[m][1] - x[o][1]);
-                f[o][2] += AP::F_origin[k] * (x[m][2] - x[o][2]);
+        for (int t = 0; t < AP::N; ++t) {
+            int j = atom->map(molecule_begin + t);
+            // TODO: for numerical stability it may be better to use relative
+            // positions + Phi
+            for (int d = 0; d < AP::d; ++d) {
+                f[i][d] += AP::F[index_in_molecule][t] *
+                           correct_coord(x[j][d], x[i][d], box_len[d]);
             }
         }
     }
-    int nproc = 0;
-    for (int i = 0; i < processed.size(); ++i) nproc += processed[i];
-    // printf("ub %d  \n", unique_bonds);
-
-    double avgforce = 0.0, avgdist = 0.0, avgdist2 = 0.0;
-    for (int i = 0; i < atom->natoms; ++i) {
-        // int j = neighbor->bondlist[i][0];
-        // int k = neighbor->bondlist[i][1];
-
-        double dx[3];
-        for (int d = 0; d < 3; ++d)
-            dx[d] = f[i][d];
-        avgforce += sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
-    }
-    int z = 0;
-    for (int i = 0; i < atom->natoms; ++i) {
-        if (atom->num_bond[i] == 0) continue;
-        ++z;
-        int j = atom->bond_atom[i][0];
-        // int k = neighbor->bondlist[i][1];
-
-        double dx[3];
-        for (int d = 0; d < 3; ++d)
-            dx[d] = x[i][d] - x[j][d];
-        avgdist2 += sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
-    }
-    printf("z %d\n", z);
-    for (int i = 0; i < neighbor->nbondlist; ++i) {
-        int j = neighbor->bondlist[i][0];
-        int k = neighbor->bondlist[i][1];
-
-        double dx[3];
-        for (int d = 0; d < 3; ++d)
-            dx[d] = x[j][d] - x[k][d];
-        avgdist += sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
-    }
-    printf("avgforce: %lf  avgdist %lf  avgdist2 %lf", avgforce / atom->natoms, avgdist / neighbor->nbondlist, avgdist2 / atom->natoms);
 }
