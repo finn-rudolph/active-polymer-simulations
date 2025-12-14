@@ -14,8 +14,8 @@ using namespace std;
 
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
-constexpr double rho = 0.1;
-constexpr double l = 20;
+constexpr double rho = 0.05;
+constexpr double l = 80;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.5;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
@@ -57,21 +57,21 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    // cmd("comm_modify mode single cutoff 2.5");  // idk whether this is relevant.
-    cmd("newton on off");                       // Try changing this.
+    cmd("comm_modify mode single cutoff 2.5");
+    cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
     cmd("region R block 0 {} 0 {} 0 {}", l, l, l);
 
-    cmd("create_box 2 R bond/types 1 extra/bond/per/atom 2");
+    cmd("create_box 1 R bond/types 1 extra/bond/per/atom 2");
     cmd("molecule active_poly active_poly.txt");
     cmd("create_atoms 0 region R mol active_poly 42");
 
     cmd("bond_coeff *");
     cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
-    // cmd("pair_style lj/cut {}", sigma);
-    // cmd("pair_coeff * * 1 1");
+    cmd("pair_style lj/cut {}", sigma);
+    cmd("pair_coeff * * 1 1");
 
     cmd("fix 1 all nve");
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
