@@ -10,7 +10,8 @@
   pump energy into the system. The langevin fix (I guess) tries to counteract that by weakening the random
   forces, so the system approaches an equilibrium temperature and total energy. This is not correct, the
   energy should steadily increase. Maybe one can fix this by subtracting the amount of energy pumped into 
-  the system from the total energy. This can be done after the force computation in the fix. Of course,
+  the system from the total energy. This can be done after the force computation in the fix. 
+  Alternatively, tell LAMMPS to increase the temperature over a time period. Of course,
   this causes the simulation to become unstable long-term, and a continuous supply of active energy is also
   not very realistic. Maybe the particles should also be able to "absorb" energy somehow.
 

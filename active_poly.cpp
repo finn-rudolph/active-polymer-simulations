@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff 4.5");
+    cmd("comm_modify mode single cutoff {}", AP::N + 1.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
@@ -90,13 +90,18 @@ int main(int argc, char** argv) {
     // cmd("compute temp_compute all temp/partial");
     // cmd("fix_modify langevin temp temp_compute [x y z]");
 
-    for (auto& coord : {"x", "y", "z"}) {
-        cmd("variable v{} equal vcm(all, {})", coord, coord);
-    }
+    cmd("compute stress all pressure NULL virial");
+    cmd("variable Txx equal c_stress[1]");
+    cmd("variable Tyy equal c_stress[2]");
+    cmd("variable Tzz equal c_stress[3]");
+
+    // for (auto& coord : {"x", "y", "z"}) {
+    //     cmd("variable v{} equal vcm(all, {})", coord, coord);
+    // }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp press etotal v_vx v_vy v_vz");
+    cmd("thermo_style custom step temp press etotal v_Txx v_Tyy v_Tzz");
     cmd("timestep 0.001");
     cmd("run 10000");
 
