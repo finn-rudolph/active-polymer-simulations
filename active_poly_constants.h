@@ -2,9 +2,11 @@
 
 namespace AP {
 constexpr int d = 3;
-constexpr int N = 2;  // #atoms per molecule
+constexpr int N = 3;  // #atoms per molecule
 
-constexpr std::array<std::array<double, N - 1>, N - 1> Phi = {{-100.0}};
+constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
+    {{{{-100.0, 10.0}},
+      {{-10.0, -200.0}}}};
 
 constexpr auto position_force_matrix() {
     std::array<std::array<double, N>, N> F = {};

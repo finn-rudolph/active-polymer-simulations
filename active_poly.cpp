@@ -15,7 +15,7 @@ using namespace std;
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
 constexpr double rho = 0.05;
-constexpr double l = 80;
+constexpr double l = 50;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.5;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
@@ -49,6 +49,14 @@ int main(int argc, char** argv) {
     for (int i = 2; i <= AP::N; ++i)
         molecule_file << format("{}   {} {} {}\n", i - 1, 1, i - 1, i);
 
+    molecule_file << "\nSpecial Bond Counts\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}   0 0 0\n", i);
+
+    molecule_file << "\nSpecial Bonds\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}\n", i);
+
     molecule_file.close();
 
     // basic setup
@@ -57,7 +65,7 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff 2.5");
+    cmd("comm_modify mode single cutoff 4.5");
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
