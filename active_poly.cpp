@@ -14,11 +14,17 @@ using namespace std;
 
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
-constexpr double rho = 0.05;
-constexpr double l = 55;
+constexpr double rho = 0.02;
+constexpr double l = 35;
 constexpr double T = 1.0;
-constexpr double damp_coeff = 0.02;
+constexpr double damp_coeff = 0.1;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
+
+constexpr uint64_t equilibration_timesteps = 10000;
+constexpr uint64_t run_timesteps = 50000;
+constexpr double timestep = 0.001;
+
+constexpr double shear_rate = 0.0001;
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -65,11 +71,11 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff {}", AP::N + 1.0);
+    cmd("comm_modify mode single cutoff {}", AP::N + 2.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
-    cmd("region R block 0 {} 0 {} 0 {}", l, l, l);
+    cmd("region R prism 0 {} 0 {} 0 {} 0 0 0", l, l, l);
 
     cmd("create_box 1 R bond/types 1 extra/bond/per/atom 2");
     cmd("molecule active_poly active_poly.txt");
@@ -85,11 +91,6 @@ int main(int argc, char** argv) {
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
     cmd("fix 3 all active_poly_force");
 
-    // This will be necessary when the active force causes a nonzero movement of
-    // the center of mass. Then we must tell the langevin fix not to cancel this.
-    // cmd("compute temp_compute all temp/partial");
-    // cmd("fix_modify langevin temp temp_compute [x y z]");
-
     cmd("compute stress all pressure NULL virial");
     cmd("variable Txx equal c_stress[1]");
     cmd("variable Tyy equal c_stress[2]");
@@ -98,26 +99,32 @@ int main(int argc, char** argv) {
     cmd("compute 1x1x all config_moment 1x 1x");
     cmd("compute 1x1y all config_moment 1x 1y");
     cmd("compute 1y1y all config_moment 1y 1y");
-    cmd("compute 1x2x all config_moment 1x 2x");
-    cmd("compute 1x2y all config_moment 1x 2y");
-    cmd("compute 2x2x all config_moment 2x 2x");
-    cmd("compute 2x2y all config_moment 2x 2y");
-    cmd("compute 2y2y all config_moment 2y 2y");
+    // cmd("compute 1x2x all config_moment 1x 2x");
+    // cmd("compute 1x2y all config_moment 1x 2y");
+    // cmd("compute 2x2x all config_moment 2x 2x");
+    // cmd("compute 2x2y all config_moment 2x 2y");
+    // cmd("compute 2y2y all config_moment 2y 2y");
 
-
-
-    // for (auto& coord : {"x", "y", "z"}) {
-    //     cmd("variable v{} equal vcm(all, {})", coord, coord);
-    // }
+    for (auto& coord : {"x", "y", "z"}) {
+        cmd("variable v{} equal vcm(all, {})", coord, coord);
+    }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y");
-    cmd("timestep 0.001");
-    cmd("run 50000");
+    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y v_vx v_vy v_vz ke");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
+    cmd("timestep {}", timestep);
+    cmd("run {}", equilibration_timesteps);
+
+    if (shear_rate > 0.0) {
+        cmd("fix 4 all deform 1 xy erate {} remap v", shear_rate);
+
+        // This calculates temperature correctly under deformation.
+        cmd("compute temp_deform all temp/deform");
+        cmd("fix_modify langevin temp temp_deform");
+    }
+
+    cmd("run {}", run_timesteps);
 
     lammps_close(lmp);
     MPI_Finalize();
 }
-
-// https://matsci.org/t/lammps-users-number-of-atoms-in-molecules/39599
