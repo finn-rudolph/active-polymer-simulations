@@ -15,9 +15,9 @@ using namespace std;
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
 constexpr double rho = 0.05;
-constexpr double l = 50;
+constexpr double l = 55;
 constexpr double T = 1.0;
-constexpr double damp_coeff = 0.5;
+constexpr double damp_coeff = 0.02;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
 int main(int argc, char** argv) {
@@ -78,8 +78,8 @@ int main(int argc, char** argv) {
     cmd("bond_coeff *");
     cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
-    cmd("pair_style lj/cut {}", sigma);
-    cmd("pair_coeff * * 1 1");
+    // cmd("pair_style lj/cut {}", sigma);
+    // cmd("pair_coeff * * 1 1");
 
     cmd("fix 1 all nve");
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
@@ -95,15 +95,26 @@ int main(int argc, char** argv) {
     cmd("variable Tyy equal c_stress[2]");
     cmd("variable Tzz equal c_stress[3]");
 
+    cmd("compute 1x1x all config_moment 1x 1x");
+    cmd("compute 1x1y all config_moment 1x 1y");
+    cmd("compute 1y1y all config_moment 1y 1y");
+    cmd("compute 1x2x all config_moment 1x 2x");
+    cmd("compute 1x2y all config_moment 1x 2y");
+    cmd("compute 2x2x all config_moment 2x 2x");
+    cmd("compute 2x2y all config_moment 2x 2y");
+    cmd("compute 2y2y all config_moment 2y 2y");
+
+
+
     // for (auto& coord : {"x", "y", "z"}) {
     //     cmd("variable v{} equal vcm(all, {})", coord, coord);
     // }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp press etotal v_Txx v_Tyy v_Tzz");
+    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y");
     cmd("timestep 0.001");
-    cmd("run 10000");
+    cmd("run 50000");
 
     lammps_close(lmp);
     MPI_Finalize();

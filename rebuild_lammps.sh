@@ -1,4 +1,4 @@
-declare -a files_to_copy=("fix_active_poly_force")
+declare -a files_to_copy=("fix_active_poly_force", "compute_config_moment")
 
 for file in "${files_to_copy[@]}"
 do 
