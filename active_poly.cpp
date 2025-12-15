@@ -24,7 +24,8 @@ constexpr uint64_t equilibration_timesteps = 10000;
 constexpr uint64_t run_timesteps = 50000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.0001;
+constexpr double shear_rate = 0.0003;
+// TODO: monitor molecule diameter
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -117,10 +118,11 @@ int main(int argc, char** argv) {
 
     if (shear_rate > 0.0) {
         cmd("fix 4 all deform 1 xy erate {} remap v", shear_rate);
-
+        
         // This calculates temperature correctly under deformation.
         cmd("compute temp_deform all temp/deform");
-        cmd("fix_modify langevin temp temp_deform");
+        cmd("fix_modify 2 temp temp_deform");
+        // cmd("velocity all ramp vx 0.0 1.0 y 0.0 128.0 temp temp_deform");
     }
 
     cmd("run {}", run_timesteps);
