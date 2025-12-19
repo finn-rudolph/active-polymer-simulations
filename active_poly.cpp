@@ -24,7 +24,7 @@ constexpr uint64_t equilibration_timesteps = 10000;
 constexpr uint64_t run_timesteps = 50000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.0003;
+constexpr double shear_rate = 0.0002;
 // TODO: monitor molecule diameter
 
 int main(int argc, char** argv) {
@@ -106,13 +106,15 @@ int main(int argc, char** argv) {
     // cmd("compute 2x2y all config_moment 2x 2y");
     // cmd("compute 2y2y all config_moment 2y 2y");
 
+    cmd("compute diam all particle_diameter");
+
     for (auto& coord : {"x", "y", "z"}) {
         cmd("variable v{} equal vcm(all, {})", coord, coord);
     }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y v_vx v_vy v_vz ke");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
+    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y ke c_diam");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 
