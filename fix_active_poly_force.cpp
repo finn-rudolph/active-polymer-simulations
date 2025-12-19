@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "active_poly_constants.h"
+#include "active_poly_util.h"
 #include "atom.h"
 #include "domain.h"
 #include "error.h"
@@ -23,15 +24,6 @@ int FixActivePolyForce::setmask() {
     return FixConst::POST_FORCE;
 }
 
-inline double correct_coord(double coord, double reference, double len) {
-    double difference = coord - reference;
-    if (difference > len / 2)
-        return coord - len;
-    else if (difference < -len / 2)
-        return coord + len;
-    return coord;
-}
-
 void FixActivePolyForce::post_force(int) {
     double** x = atom->x;
     double** f = atom->f;
@@ -46,8 +38,40 @@ void FixActivePolyForce::post_force(int) {
         int index_in_molecule = (tag - 1) % AP::N;
         int molecule_begin = tag - index_in_molecule;
 
+        // --- PASSIVE TRIANGLE ---
+
+        if (AP::N != 3) exit(42);
+        constexpr double spring_const = 10000.0;
+        int j[3];
+        for (int t = 0; t < 3; ++t) j[t] = atom->map(molecule_begin + t);
+
+        double l1[3], l2[3];
+        for (int d = 0; d < AP::d; ++d) {
+            l1[d] = correct_coord_diff(atom->x[j[1]][d] - atom->x[j[0]][d], box_len[d]);
+            l2[d] = correct_coord_diff(atom->x[j[2]][d] - atom->x[j[0]][d], box_len[d]);
+        }
+        double l1_sq = l1[0] * l1[0] + l1[1] * l1[1] + l1[2] * l1[2];
+        double l2_sq = l2[0] * l2[0] + l2[1] * l2[1] + l2[2] * l2[2];
+        double l1_dot_l2 = l1[0] * l2[0] + l1[1] * l2[1] + l1[2] * l2[2];
+
+        if (index_in_molecule == 0) {
+            for (int d = 0; d < AP::d; ++d)
+                f[i][d] -= spring_const * (l1[d] * (l1_dot_l2 - l2_sq) + l2[d] * (l1_dot_l2 - l1_sq));
+        } else if (index_in_molecule == 1) {
+            for (int d = 0; d < AP::d; ++d)
+                f[i][d] -= spring_const * (l1[d] * l2_sq - l2[d] * l1_dot_l2);
+        } else {
+            for (int d = 0; d < AP::d; ++d)
+                f[i][d] -= spring_const * (l2[d] * l2_sq - l1[d] * l1_dot_l2);
+        }
+
+        continue;
+
+        // --- LINEAR FORCES ---
+
         for (int t = 0; t < AP::N; ++t) {
             int j = atom->map(molecule_begin + t);
+
             // TODO: for numerical stability it may be better to use relative
             // positions + Phi
             for (int d = 0; d < AP::d; ++d) {

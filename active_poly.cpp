@@ -14,7 +14,7 @@ using namespace std;
 
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
-constexpr double rho = 0.02;
+constexpr double rho = 0.01;
 constexpr double l = 35;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.1;
@@ -98,8 +98,13 @@ int main(int argc, char** argv) {
     cmd("variable Tzz equal c_stress[3]");
 
     cmd("compute 1x1x all config_moment 1x 1x");
-    cmd("compute 1x1y all config_moment 1x 1y");
     cmd("compute 1y1y all config_moment 1y 1y");
+    cmd("compute 1z1z all config_moment 1z 1z");
+    cmd("compute 1x1y all config_moment 1x 1y");
+    cmd("compute 1x1z all config_moment 1x 1z");
+    cmd("compute 1y1z all config_moment 1y 1z");
+
+
     // cmd("compute 1x2x all config_moment 1x 2x");
     // cmd("compute 1x2y all config_moment 1x 2y");
     // cmd("compute 2x2x all config_moment 2x 2x");
@@ -114,7 +119,7 @@ int main(int argc, char** argv) {
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp press c_1x1x c_1x1y c_1y1y ke c_diam");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
+    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z ke c_diam");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 

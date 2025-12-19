@@ -3,6 +3,7 @@
 #include <charconv>
 
 #include "active_poly_constants.h"
+#include "active_poly_util.h"
 #include "atom.h"
 #include "domain.h"
 #include "error.h"
@@ -39,14 +40,6 @@ ComputeConfigMoment::ComputeConfigMoment(LAMMPS* lmp, int argc, char** argv)
 
 void ComputeConfigMoment::init() {}
 
-inline double correct_coord_diff(double diff, double len) {
-    if (diff > len / 2)
-        return diff - len;
-    else if (diff < -len / 2)
-        return diff + len;
-    return diff;
-}
-
 double ComputeConfigMoment::compute_scalar() {
     double box_len[3];
     for (int d = 0; d < AP::d; ++d)
@@ -70,6 +63,6 @@ double ComputeConfigMoment::compute_scalar() {
     // TODO: Is it really a good idea to do a sum here?? This could become huge...
     MPI_Allreduce(&total, &scalar, 1, MPI_DOUBLE, MPI_SUM, world);
 
-    scalar = scalar / (atom->natoms / AP::N); // * force->nktv2p / (domain->xprd * domain->yprd * domain->zprd);
+    scalar = scalar / (atom->natoms / AP::N);  // * force->nktv2p / (domain->xprd * domain->yprd * domain->zprd);
     return scalar;
 }

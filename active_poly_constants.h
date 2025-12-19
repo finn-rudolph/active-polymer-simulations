@@ -2,7 +2,7 @@
 
 namespace AP {
 constexpr int d = 3;
-constexpr int N = 2;  // #atoms per molecule
+constexpr int N = 3;  // #atoms per molecule
 
 constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
     {{{{-500.0}}}};
