@@ -14,18 +14,21 @@ using namespace std;
 
 #define cmd(s, ...) lammps_command(lmp, format(s, ##__VA_ARGS__).c_str())
 
-constexpr double rho = 0.01;
-constexpr double l = 35;
+constexpr std::array<char, 3> variables = {{'x', 'y', 'z'}};
+
+constexpr double rho = 0.02;
+constexpr double l = 25;
 constexpr double T = 1.0;
-constexpr double damp_coeff = 0.1;
+constexpr double damp_coeff = 0.05;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
 constexpr uint64_t equilibration_timesteps = 10000;
-constexpr uint64_t run_timesteps = 50000;
+constexpr uint64_t run_timesteps = 100000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.0002;
-// TODO: monitor molecule diameter
+constexpr double shear_rate = 0.0003;
+
+void compute_cross_product_second_moments(void* lmp);
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -44,7 +47,7 @@ int main(int argc, char** argv) {
 
     molecule_file << "\nCoords\n\n";
     for (int i = 1; i <= AP::N; ++i)
-        molecule_file << format("{}   {}.0 0.0 0.0\n", i, i - 1);
+        molecule_file << format("{}   {} 0.0 0.0\n", i, ((float)i - 1) / 10);
 
     molecule_file << "\nTypes\n\n";
     for (int i = 1; i <= AP::N; ++i)
@@ -72,7 +75,7 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff {}", AP::N + 2.0);
+    cmd("comm_modify mode single cutoff {}", 10.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
@@ -85,47 +88,45 @@ int main(int argc, char** argv) {
     cmd("bond_coeff *");
     cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
-    // cmd("pair_style lj/cut {}", sigma);
-    // cmd("pair_coeff * * 1 1");
+    // cmd("pair_style lj/cut {}", 2.5);
+    // cmd("pair_coeff * * 1 {}", sigma);
 
     cmd("fix 1 all nve");
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
     cmd("fix 3 all active_poly_force");
 
-    cmd("compute stress all pressure NULL virial");
-    cmd("variable Txx equal c_stress[1]");
-    cmd("variable Tyy equal c_stress[2]");
-    cmd("variable Tzz equal c_stress[3]");
+    // cmd("compute stress all pressure NULL virial");
+    // cmd("variable Txx equal c_stress[1]");
+    // cmd("variable Tyy equal c_stress[2]");
+    // cmd("variable Tzz equal c_stress[3]");
 
-    cmd("compute 1x1x all config_moment 1x 1x");
-    cmd("compute 1y1y all config_moment 1y 1y");
-    cmd("compute 1z1z all config_moment 1z 1z");
-    cmd("compute 1x1y all config_moment 1x 1y");
-    cmd("compute 1x1z all config_moment 1x 1z");
-    cmd("compute 1y1z all config_moment 1y 1z");
-
+    // cmd("compute 1x1x all config_moment 1x 1x");
+    // cmd("compute 1y1y all config_moment 1y 1y");
+    // cmd("compute 1z1z all config_moment 1z 1z");
+    // cmd("compute 1x1y all config_moment 1x 1y");
+    // cmd("compute 1x1z all config_moment 1x 1z");
+    // cmd("compute 1y1z all config_moment 1y 1z");
 
     // cmd("compute 1x2x all config_moment 1x 2x");
-    // cmd("compute 1x2y all config_moment 1x 2y");
     // cmd("compute 2x2x all config_moment 2x 2x");
-    // cmd("compute 2x2y all config_moment 2x 2y");
-    // cmd("compute 2y2y all config_moment 2y 2y");
 
     cmd("compute diam all particle_diameter");
+    compute_cross_product_second_moments(lmp);
 
-    for (auto& coord : {"x", "y", "z"}) {
-        cmd("variable v{} equal vcm(all, {})", coord, coord);
-    }
+    // for (auto& coord : {"x", "y", "z"}) {
+    //     cmd("variable v{} equal vcm(all, {})", coord, coord);
+    // }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z ke c_diam");  // c_1x2x c_1x2y c_2x2x c_2x2y c_2y2y
+    cmd("thermo_style custom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
+    // c_1x1x c_1y1y c_1z1z c_1x1y c_1x2x c_2x2x
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 
     if (shear_rate > 0.0) {
         cmd("fix 4 all deform 1 xy erate {} remap v", shear_rate);
-        
+
         // This calculates temperature correctly under deformation.
         cmd("compute temp_deform all temp/deform");
         cmd("fix_modify 2 temp temp_deform");
@@ -136,4 +137,42 @@ int main(int argc, char** argv) {
 
     lammps_close(lmp);
     MPI_Finalize();
+}
+
+void moment(void* lmp, std::string s) {
+    std::string args = std::string(s.begin(), s.begin() + 2);
+    for (int i = 2; i < s.size(); i += 2) {
+        args.push_back(' ');
+        args.append(s.begin() + i, s.begin() + i + 2);
+    }
+    std::replace(args.begin(), args.end(), '_', ' ');
+    cmd("compute {} all config_moment {}", s, args);
+}
+
+void compute_cross_product_second_moments(void* lmp) {
+    for (auto const& a : variables)
+        for (auto const& b : variables) {
+            if (a != b) {
+                moment(lmp, format("1{}1{}2{}2{}", a, a, b, b));
+                moment(lmp, format("1{}1{}2{}2{}", a, b, a, b));
+
+                for (auto const& c : variables)
+                    if (a != c && b != c) {
+                        moment(lmp, format("1{}1{}2{}2{}", a, b, c, c));
+                        moment(lmp, format("1{}1{}2{}2{}", a, a, b, c));
+                        moment(lmp, format("1{}1{}2{}2{}", b, a, a, c));
+                        moment(lmp, format("1{}1{}2{}2{}", a, b, c, a));
+                    }
+            }
+        }
+
+    // squares
+    cmd("variable axx equal c_1y1y2z2z + c_1z1z2y2y - 2 * c_1y1z2y2z");
+    cmd("variable ayy equal c_1z1z2x2x + c_1x1x2z2z - 2 * c_1z1x2z2x");
+    cmd("variable azz equal c_1x1x2y2y + c_1y1y2x2x - 2 * c_1x1y2x2y");
+
+    // mixed products
+    cmd("variable axy equal c_1y1z2z2x - c_1y1x2z2z - c_1z1z2y2x + c_1z1x2y2z");
+    cmd("variable ayz equal c_1z1x2x2y - c_1z1y2x2x - c_1x1x2z2y + c_1x1y2z2x");
+    cmd("variable azx equal c_1x1y2y2z - c_1x1z2y2y - c_1y1y2x2z + c_1y1z2x2y");
 }

@@ -5,16 +5,21 @@ constexpr int d = 3;
 constexpr int N = 3;  // #atoms per molecule
 
 constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
-    {{{{-500.0}}}};
+    {{{{-100.0, 0.0}}, {{0.0, -200.0}}}};
+
+// constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
+//     {{{{-100.0}}}};
 
 constexpr auto position_force_matrix() {
     std::array<std::array<double, N>, N> F = {};
     for (int i = 0; i < N - 1; ++i)
         for (int j = 0; j < N - 1; ++j) {
-            F[i + 1][j + 1] = Phi[i][j];
-            F[i + 1][0] -= Phi[i][j];
-            F[0][j + 1] -= Phi[i][j];
-            F[0][0] += Phi[i][j];
+            // The force applied to each bead is only half the "force" we want
+            // on the connection vector.
+            F[i + 1][j + 1] = Phi[i][j] / 2;
+            F[i + 1][0] -= Phi[i][j] / 2;
+            F[0][j + 1] -= Phi[i][j] / 2;
+            F[0][0] += Phi[i][j] / 2;
         }
     return F;
 }

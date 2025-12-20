@@ -41,7 +41,7 @@ void FixActivePolyForce::post_force(int) {
         // --- PASSIVE TRIANGLE ---
 
         if (AP::N != 3) exit(42);
-        constexpr double spring_const = 10000.0;
+        constexpr double spring_const = 500.0;
         int j[3];
         for (int t = 0; t < 3; ++t) j[t] = atom->map(molecule_begin + t);
 
