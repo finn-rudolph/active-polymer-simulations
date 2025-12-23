@@ -26,4 +26,13 @@ constexpr auto position_force_matrix() {
 
 // The force matrix with respect to positions (Phi is wrt position differences).
 constexpr auto F = position_force_matrix();
+
+enum ParticleType {
+    Linear,
+    PassiveTriangle,
+    ActiveOrthTriangle,
+};
+
+constexpr ParticleType particle_type = ParticleType::PassiveTriangle;
 }  // namespace AP
+
