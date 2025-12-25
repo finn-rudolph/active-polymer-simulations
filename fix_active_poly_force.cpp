@@ -24,7 +24,63 @@ int FixActivePolyForce::setmask() {
     return FixConst::POST_FORCE;
 }
 
-void passive_triangle_force() {
+void cross_prod(double a[3], double b[3], double result[3]) {
+    result[0] = a[1] * b[2] - a[2] * b[1];
+    result[1] = a[2] * b[0] - a[0] * b[2];
+    result[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void sub(double a[3], double b[3], double result[3]) {
+    for (int d = 0; d < 3; ++d) result[d] = a[d] - b[d];
+}
+
+void correct_coords(double a[3], double box_len[3]) {
+    for (int d = 0; d < 3; ++d)
+        a[d] = correct_coord_diff(a[d], box_len[d]);
+}
+
+void linear_forces(Atom* atom, double box_len[3], int molecule_begin, int index_in_molecule) {
+    int i = atom->map(molecule_begin + index_in_molecule);
+
+    for (int t = 0; t < AP::N; ++t) {
+        int j = atom->map(molecule_begin + t);
+
+        // TODO: for numerical stability it may be better to use relative
+        // positions + Phi
+        for (int d = 0; d < AP::d; ++d) {
+            atom->f[i][d] += AP::F[index_in_molecule][t] *
+                             correct_coord(atom->x[j][d], atom->x[i][d], box_len[d]);
+        }
+    }
+}
+
+void passive_triangle_forces(Atom* atom, double box_len[3], int molecule_begin, int index_in_molecule) {
+    int i = atom->map(molecule_begin + index_in_molecule);
+
+    constexpr double spring_const = 10000.0;
+    int j[3];
+    for (int t = 0; t < 3; ++t) j[t] = atom->map(molecule_begin + t);
+
+    double l1[3], l2[3];
+    sub(atom->x[j[1]], atom->x[j[0]], l1);
+    correct_coords(l1, box_len);
+    sub(atom->x[j[2]], atom->x[j[0]], l2);
+    correct_coords(l2, box_len);
+
+    double l1_sq = l1[0] * l1[0] + l1[1] * l1[1] + l1[2] * l1[2];
+    double l2_sq = l2[0] * l2[0] + l2[1] * l2[1] + l2[2] * l2[2];
+    double l1_dot_l2 = l1[0] * l2[0] + l1[1] * l2[1] + l1[2] * l2[2];
+
+    if (index_in_molecule == 0) {
+        for (int d = 0; d < AP::d; ++d)
+            atom->f[i][d] -= spring_const * (l1[d] * (l1_dot_l2 - l2_sq) + l2[d] * (l1_dot_l2 - l1_sq));
+    } else if (index_in_molecule == 1) {
+        for (int d = 0; d < AP::d; ++d)
+            atom->f[i][d] -= spring_const * (l1[d] * l2_sq - l2[d] * l1_dot_l2);
+    } else {
+        for (int d = 0; d < AP::d; ++d)
+            atom->f[i][d] -= spring_const * (l2[d] * l2_sq - l1[d] * l1_dot_l2);
+    }
 }
 
 void FixActivePolyForce::post_force(int) {
@@ -42,50 +98,33 @@ void FixActivePolyForce::post_force(int) {
         int molecule_begin = tag - index_in_molecule;
 
         if (AP::particle_type == AP::ParticleType::PassiveTriangle) {
-            // --- PASSIVE TRIANGLE ---
-
-            if (AP::N != 3) exit(42);
-            constexpr double spring_const = 10000.0;
-            int j[3];
-            for (int t = 0; t < 3; ++t) j[t] = atom->map(molecule_begin + t);
-
-            double l1[3], l2[3];
-            for (int d = 0; d < AP::d; ++d) {
-                l1[d] = correct_coord_diff(atom->x[j[1]][d] - atom->x[j[0]][d], box_len[d]);
-                l2[d] = correct_coord_diff(atom->x[j[2]][d] - atom->x[j[0]][d], box_len[d]);
-            }
-            double l1_sq = l1[0] * l1[0] + l1[1] * l1[1] + l1[2] * l1[2];
-            double l2_sq = l2[0] * l2[0] + l2[1] * l2[1] + l2[2] * l2[2];
-            double l1_dot_l2 = l1[0] * l2[0] + l1[1] * l2[1] + l1[2] * l2[2];
-
-            if (index_in_molecule == 0) {
-                for (int d = 0; d < AP::d; ++d)
-                    f[i][d] -= spring_const * (l1[d] * (l1_dot_l2 - l2_sq) + l2[d] * (l1_dot_l2 - l1_sq));
-            } else if (index_in_molecule == 1) {
-                for (int d = 0; d < AP::d; ++d)
-                    f[i][d] -= spring_const * (l1[d] * l2_sq - l2[d] * l1_dot_l2);
-            } else {
-                for (int d = 0; d < AP::d; ++d)
-                    f[i][d] -= spring_const * (l2[d] * l2_sq - l1[d] * l1_dot_l2);
-            }
-
+            passive_triangle_forces(atom, box_len, molecule_begin, index_in_molecule);
         } else if (AP::particle_type == AP::ParticleType::Linear) {
-            // --- LINEAR FORCES ---
+            linear_forces(atom, box_len, molecule_begin, index_in_molecule);
+        } else if (AP::particle_type == AP::ParticleType::ActiveTriangleOrthogonal) {
+            double rot_const = 200.0;
+            // {{{{-300.0, 0.0}}, {{0.0, -300.0}}}};
+            linear_forces(atom, box_len, molecule_begin, index_in_molecule);
 
-            for (int t = 0; t < AP::N; ++t) {
-                int j = atom->map(molecule_begin + t);
+            if (index_in_molecule >= 1) {
+                int j[3];
+                for (int t = 0; t < 3; ++t) j[t] = atom->map(molecule_begin + t);
 
-                // TODO: for numerical stability it may be better to use relative
-                // positions + Phi
-                for (int d = 0; d < AP::d; ++d) {
-                    f[i][d] += AP::F[index_in_molecule][t] *
-                               correct_coord(x[j][d], x[i][d], box_len[d]);
+                double l1[3], l2[3], a[3];
+                sub(atom->x[j[1]], atom->x[j[0]], l1);
+                correct_coords(l1, box_len);
+                sub(atom->x[j[2]], atom->x[j[0]], l2);
+                correct_coords(l2, box_len);
+                cross_prod(l1, l2, a);
+
+                if (index_in_molecule == 1) {
+                    for (int d = 0; d < 3; ++d)
+                        atom->f[i][d] += rot_const * a[d];
+                } else {
+                    for (int d = 0; d < 3; ++d)
+                        atom->f[i][d] -= rot_const * a[d];
                 }
             }
-        }
-
-        else if (AP::particle_type == AP::ParticleType::ActiveOrthTriangle) {
-            
         }
     }
 }

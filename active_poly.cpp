@@ -104,15 +104,15 @@ int main(int argc, char** argv) {
     // cmd("variable Tyy equal c_stress[2]");
     // cmd("variable Tzz equal c_stress[3]");
 
-    // cmd("compute 1x1x all config_moment 1x 1x");
-    // cmd("compute 1y1y all config_moment 1y 1y");
-    // cmd("compute 1z1z all config_moment 1z 1z");
-    // cmd("compute 1x1y all config_moment 1x 1y");
-    // cmd("compute 1x1z all config_moment 1x 1z");
-    // cmd("compute 1y1z all config_moment 1y 1z");
+    cmd("compute 1x1x all config_moment 1x 1x");
+    cmd("compute 1y1y all config_moment 1y 1y");
+    cmd("compute 1z1z all config_moment 1z 1z");
+    cmd("compute 1x1y all config_moment 1x 1y");
+    cmd("compute 1x1z all config_moment 1x 1z");
+    cmd("compute 1y1z all config_moment 1y 1z");
 
-    // cmd("compute 1x2x all config_moment 1x 2x");
-    // cmd("compute 2x2x all config_moment 2x 2x");
+    cmd("compute 1x2x all config_moment 1x 2x");
+    cmd("compute 2x2x all config_moment 2x 2x");
 
     cmd("compute diam all particle_diameter");
     compute_cross_product_second_moments(lmp);
@@ -123,8 +123,8 @@ int main(int argc, char** argv) {
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    cmd("thermo_style custom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
-    // c_1x1x c_1y1y c_1z1z c_1x1y c_1x2x c_2x2x
+    // cmd("thermo_style cus^tom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
+    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 

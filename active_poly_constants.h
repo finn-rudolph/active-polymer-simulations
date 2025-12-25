@@ -5,7 +5,7 @@ constexpr int d = 3;
 constexpr int N = 3;  // #atoms per molecule
 
 constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
-    {{{{-100.0, 0.0}}, {{0.0, -200.0}}}};
+    {{{{-100.0, 0.0}}, {{0.0, -100.0}}}};
 
 // constexpr std::array<std::array<double, N - 1>, N - 1> Phi =
 //     {{{{-100.0}}}};
@@ -29,10 +29,14 @@ constexpr auto F = position_force_matrix();
 
 enum ParticleType {
     Linear,
+
+    // Triangle with E = K * |a|^2 / 2 potential.
     PassiveTriangle,
-    ActiveOrthTriangle,
+
+    // Triangle with 3 springs + a rotation force orthogonal to the plane of
+    // the triangle.
+    ActiveTriangleOrthogonal,
 };
 
-constexpr ParticleType particle_type = ParticleType::PassiveTriangle;
+constexpr ParticleType particle_type = ParticleType::ActiveTriangleOrthogonal;
 }  // namespace AP
-
