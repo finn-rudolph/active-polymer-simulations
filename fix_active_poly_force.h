@@ -21,5 +21,7 @@ class FixActivePolyForce : public Fix {
 
 };  // namespace LAMMPS_NS
 
+std::array<double, 3> active_poly_force(int i, Atom* atom, double box_len[3]);
+
 #endif
 #endif

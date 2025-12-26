@@ -4,8 +4,8 @@ ComputeStyle(particle_diameter, ComputeParticleDiameter)
 
 #else
 
-#ifndef LMP_COMPUTE_PARTICLE_DIAMETER_H
-#define LMP_COMPUTE_PARTICLE_DIAMETER_H
+#ifndef COMPUTE_PARTICLE_DIAMETER_H
+#define COMPUTE_PARTICLE_DIAMETER_H
 
 #include <vector>
 

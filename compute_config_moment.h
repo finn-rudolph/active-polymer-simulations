@@ -4,8 +4,8 @@ ComputeStyle(config_moment, ComputeConfigMoment)
 
 #else
 
-#ifndef LMP_COMPUTE_CONFIG_MOMENT_H
-#define LMP_COMPUTE_CONFIG_MOMENT_H
+#ifndef COMPUTE_CONFIG_MOMENT_H
+#define COMPUTE_CONFIG_MOMENT_H
 
 #include <vector>
 

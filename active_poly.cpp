@@ -19,14 +19,14 @@ constexpr std::array<char, 3> variables = {{'x', 'y', 'z'}};
 constexpr double rho = 0.02;
 constexpr double l = 40;
 constexpr double T = 1.0;
-constexpr double damp_coeff = 0.01;
+constexpr double damp_coeff = 0.1;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
 constexpr uint64_t equilibration_timesteps = 10000;
 constexpr uint64_t run_timesteps = 100000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.0000;
+constexpr double shear_rate = 0.003;
 
 // TODO: compare equilibrium second moments with theory
 //       compare signs of stress differences with theory
@@ -63,13 +63,13 @@ int main(int argc, char** argv) {
     for (int i = 2; i <= AP::N; ++i)
         molecule_file << format("{}   {} {} {}\n", i - 1, 1, i - 1, i);
 
-    molecule_file << "\nSpecial Bond Counts\n\n";
-    for (int i = 1; i <= AP::N; ++i)
-        molecule_file << format("{}   0 0 0\n", i);
+    // molecule_file << "\nSpecial Bond Counts\n\n";
+    // for (int i = 1; i <= AP::N; ++i)
+    //     molecule_file << format("{}   0 0 0\n", i);
 
-    molecule_file << "\nSpecial Bonds\n\n";
-    for (int i = 1; i <= AP::N; ++i)
-        molecule_file << format("{}\n", i);
+    // molecule_file << "\nSpecial Bonds\n\n";
+    // for (int i = 1; i <= AP::N; ++i)
+    //     molecule_file << format("{}\n", i);
 
     molecule_file.close();
 
@@ -99,10 +99,12 @@ int main(int argc, char** argv) {
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
     cmd("fix 3 all active_poly_force");
 
-    // cmd("compute stress all pressure NULL virial");
-    // cmd("variable Txx equal c_stress[1]");
-    // cmd("variable Tyy equal c_stress[2]");
-    // cmd("variable Tzz equal c_stress[3]");
+    cmd("compute stress all pressure NULL virial");
+    cmd("variable Txx equal c_stress[1]");
+    cmd("variable Tyy equal c_stress[2]");
+    cmd("variable Tzz equal c_stress[3]");
+    cmd("variable Txy equal c_stress[4]");
+
 
     cmd("compute 1x1x all config_moment 1x 1x");
     cmd("compute 1y1y all config_moment 1y 1y");
@@ -111,11 +113,11 @@ int main(int argc, char** argv) {
     cmd("compute 1x1z all config_moment 1x 1z");
     cmd("compute 1y1z all config_moment 1y 1z");
 
-    cmd("compute 1x2x all config_moment 1x 2x");
-    cmd("compute 2x2x all config_moment 2x 2x");
+    // cmd("compute 1x2x all config_moment 1x 2x");
+    // cmd("compute 2x2x all config_moment 2x 2x");
 
     cmd("compute diam all particle_diameter");
-    compute_cross_product_second_moments(lmp);
+    // compute_cross_product_second_moments(lmp);
 
     // for (auto& coord : {"x", "y", "z"}) {
     //     cmd("variable v{} equal vcm(all, {})", coord, coord);
@@ -124,7 +126,8 @@ int main(int argc, char** argv) {
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
     // cmd("thermo_style cus^tom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
-    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
+    // cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
+    cmd("thermo_style custom step temp v_Txx v_Tyy v_Tzz v_Txy c_1x1x c_1y1y c_1z1z c_1x1y c_diam");
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 
