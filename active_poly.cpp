@@ -19,14 +19,14 @@ constexpr std::array<char, 3> variables = {{'x', 'y', 'z'}};
 constexpr double rho = 0.02;
 constexpr double l = 25;
 constexpr double T = 1.0;
-constexpr double damp_coeff = 0.1;
+constexpr double damp_coeff = 0.01;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
 constexpr uint64_t equilibration_timesteps = 10000;
 constexpr uint64_t run_timesteps = 100000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.003;
+constexpr double shear_rate = 0.0005;
 
 // TODO: compare equilibrium second moments with theory
 //       compare signs of stress differences with theory

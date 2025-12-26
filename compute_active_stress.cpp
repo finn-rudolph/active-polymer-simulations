@@ -55,5 +55,5 @@ void ComputeActiveStress::compute_vector() {
     MPI_Allreduce(stress_tensor, vector, size_vector, MPI_DOUBLE, MPI_SUM, world);
 
     for (int i = 0; i < size_vector; ++i)
-        vector[i] /= atom->natoms / AP::N;  // maybe this is wrong
+        vector[i] /= domain->xprd * domain->yprd * domain->zprd;  // maybe this is wrong
 }
