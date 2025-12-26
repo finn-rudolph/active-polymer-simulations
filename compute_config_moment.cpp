@@ -47,7 +47,7 @@ double ComputeConfigMoment::compute_scalar() {
 
     double total = 0.0;
     for (int i = 0; i < atom->nlocal; ++i) {
-        // The first atom computes the stress contributed by the whole molecule.
+        // The first atom computes the contribution of the whole molecule.
         if (atom->tag[i] % AP::N == 1) {
             int molecule_begin = atom->tag[i];
             double moment = 1.0;
