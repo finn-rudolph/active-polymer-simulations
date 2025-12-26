@@ -78,8 +78,8 @@ int main(int argc, char** argv) {
     cmd("units lj");
 
     cmd("atom_style bond");
-    cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff {}", 10.0);
+    cmd("bond_style harmonic");
+    cmd("comm_modify mode single cutoff {}", 4.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     cmd("molecule active_poly active_poly.txt");
     cmd("create_atoms 0 region R mol active_poly 42");
 
-    cmd("bond_coeff *");
+    cmd("bond_coeff * 100 0");
     cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
     // cmd("pair_style lj/cut {}", 2.5);
@@ -97,13 +97,15 @@ int main(int argc, char** argv) {
 
     cmd("fix 1 all nve");
     cmd("fix 2 all langevin {} {} {} 42", T, T, damp_coeff);
-    cmd("fix 3 all active_poly_force");
+    // cmd("fix 3 all active_poly_force");
 
-    cmd("compute stress all pressure NULL virial");
-    cmd("variable Txx equal c_stress[1]");
-    cmd("variable Tyy equal c_stress[2]");
-    cmd("variable Tzz equal c_stress[3]");
-    cmd("variable Txy equal c_stress[4]");
+    cmd("compute T all pressure NULL virial");
+    cmd("variable Txx equal c_T[1]");
+    cmd("variable Tyy equal c_T[2]");
+    cmd("variable Tzz equal c_T[3]");
+    cmd("variable Txy equal c_T[4]");
+    cmd("variable Txz equal c_T[5]");
+    cmd("variable Tyz equal c_T[6]");
 
 
     cmd("compute 1x1x all config_moment 1x 1x");
@@ -116,6 +118,11 @@ int main(int argc, char** argv) {
     // cmd("compute 1x2x all config_moment 1x 2x");
     // cmd("compute 2x2x all config_moment 2x 2x");
 
+    // cmd("compute S all active_stress");
+    // for (int i = 0; i < 3; ++i)
+    //     for (int j = 0; j < 3; ++j)
+    //         cmd("variable S{}{} equal c_S[{}]", variables[i], variables[j], 3 * i + j);
+
     cmd("compute diam all particle_diameter");
     // compute_cross_product_second_moments(lmp);
 
@@ -127,7 +134,9 @@ int main(int argc, char** argv) {
     cmd("thermo 1000");
     // cmd("thermo_style cus^tom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
     // cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
-    cmd("thermo_style custom step temp v_Txx v_Tyy v_Tzz v_Txy c_1x1x c_1y1y c_1z1z c_1x1y c_diam");
+    // cmd("thermo_style custom step temp v_Txx v_Tyy v_Tzz v_Txy v_Txz v_Tyz c_diam");
+    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z c_diam");
+
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
 

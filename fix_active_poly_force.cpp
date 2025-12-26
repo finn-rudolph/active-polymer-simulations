@@ -6,7 +6,6 @@
 
 #include "active_poly_constants.h"
 #include "active_poly_util.h"
-#include "atom.h"
 #include "domain.h"
 #include "error.h"
 #include "neighbor.h"
@@ -86,7 +85,7 @@ void passive_triangle_forces(
 }
 
 std::array<double, 3> active_poly_force(int i, Atom* atom, double box_len[3]) {
-    std::array<double, 3> result;
+    std::array<double, 3> result = {{0.0, 0.0, 0.0}};
 
     int tag = atom->tag[i];
     int index_in_molecule = (tag - 1) % AP::N;
@@ -136,14 +135,7 @@ void FixActivePolyForce::post_force(int) {
 
     for (int i = 0; i < atom->nlocal; ++i) {
         auto intramolecular_force = active_poly_force(i, atom, box_len);
-        
-        // For the Kirkwood formula to work, we need to make sure that the
-        // positions of atoms in a molecule crossing the cyclic boundary have
-        // correct coordinates relative to each other.
-        int ref_atom = atom->map(atom->tag[i] - atom->tag[i] % AP::N);
-
         for (int d = 0; d < 3; ++d)
-            f[i][d] += intramolecular_force[d] *
-                       correct_coord(atom->x[i][d], atom->x[ref_atom][d], box_len[d]);
+            f[i][d] += intramolecular_force[d];
     }
 }
