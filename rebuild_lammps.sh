@@ -1,4 +1,4 @@
-declare -a files_to_copy=("fix_active_poly_force" "compute_config_moment" "compute_particle_diameter" "active_poly_util" "compute_active_stress")
+declare -a files_to_copy=("fix_active_poly_force" "compute_config_moment" "compute_particle_diameter" "active_poly_util" "compute_active_stress" "compute_active_stress_atom")
 
 for file in "${files_to_copy[@]}"
 do 

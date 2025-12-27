@@ -17,16 +17,18 @@ using namespace std;
 constexpr std::array<char, 3> variables = {{'x', 'y', 'z'}};
 
 constexpr double rho = 0.02;
-constexpr double l = 25;
+constexpr double l = 50;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.01;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
 constexpr uint64_t equilibration_timesteps = 10000;
-constexpr uint64_t run_timesteps = 100000;
+constexpr uint64_t run_timesteps = 200000;
 constexpr double timestep = 0.001;
 
-constexpr double shear_rate = 0.0005;
+constexpr double shear_rate = 0.0002;
+
+constexpr int ybins = 100;
 
 // TODO: compare equilibrium second moments with theory
 //       compare signs of stress differences with theory
@@ -63,13 +65,13 @@ int main(int argc, char** argv) {
     for (int i = 2; i <= AP::N; ++i)
         molecule_file << format("{}   {} {} {}\n", i - 1, 1, i - 1, i);
 
-    // molecule_file << "\nSpecial Bond Counts\n\n";
-    // for (int i = 1; i <= AP::N; ++i)
-    //     molecule_file << format("{}   0 0 0\n", i);
+    molecule_file << "\nSpecial Bond Counts\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}   0 0 0\n", i);
 
-    // molecule_file << "\nSpecial Bonds\n\n";
-    // for (int i = 1; i <= AP::N; ++i)
-    //     molecule_file << format("{}\n", i);
+    molecule_file << "\nSpecial Bonds\n\n";
+    for (int i = 1; i <= AP::N; ++i)
+        molecule_file << format("{}\n", i);
 
     molecule_file.close();
 
@@ -79,7 +81,7 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff {}", 4.0);
+    cmd("comm_modify mode single cutoff {}", 5.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
@@ -106,7 +108,6 @@ int main(int argc, char** argv) {
     cmd("variable Txy equal c_T[4]");
     cmd("variable Txz equal c_T[5]");
     cmd("variable Tyz equal c_T[6]");
-
 
     cmd("compute 1x1x all config_moment 1x 1x");
     cmd("compute 1y1y all config_moment 1y 1y");
@@ -135,8 +136,8 @@ int main(int argc, char** argv) {
     // cmd("thermo_style cus^tom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
     // cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
     // cmd("thermo_style custom step temp v_Txx v_Tyy v_Tzz v_Txy v_Txz v_Tyz c_diam");
-    cmd("thermo_style custom step temp v_Sxx v_Syy v_Szz v_Sxy v_Sxz v_Syz c_diam");
-    // cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z c_diam");
+    // cmd("thermo_style custom step temp v_Sxx v_Syy v_Szz v_Sxy v_Sxz v_Syz c_diam");
+    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z c_diam");
 
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
@@ -150,6 +151,12 @@ int main(int argc, char** argv) {
         // cmd("velocity all ramp vx 0.0 1.0 y 0.0 128.0 temp temp_deform");
     }
 
+    cmd("compute ybins all chunk/atom bin/1d y lower {} units reduced", 1.0 / ybins);
+    cmd("fix vx_profile all ave/chunk 100 10 1000 ybins vx file vx_profile.dat");
+
+    cmd("compute perAtomStress all active_stress_atom");
+    cmd("dump stressDump all custom 1000 dump.stress id x y z vx vy vz c_perAtomStress[2]");
+
     cmd("run {}", run_timesteps);
 
     lammps_close(lmp);
@@ -158,7 +165,7 @@ int main(int argc, char** argv) {
 
 void moment(void* lmp, std::string s) {
     std::string args = std::string(s.begin(), s.begin() + 2);
-    for (int i = 2; i < s.size(); i += 2) {
+    for (size_t i = 2; i < s.size(); i += 2) {
         args.push_back(' ');
         args.append(s.begin() + i, s.begin() + i + 2);
     }
