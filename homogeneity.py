@@ -13,12 +13,20 @@ Lz = 50.0
 nbins = 100
 gdot_imposed = 0.01            # if you used erate
 exclude_edge_frac = 0.1        # fraction of top/bottom bins to exclude from "bulk" fit
+
+timestep = 66000
 # --------------------------------------
 
 # --- helper: read vx_profile.dat (adapt if file header differs) ---
 # Expect lines like: <bin> <count> <vx> ...
 # If ave/chunk file has headings, skip them appropriately. Try to read all floats and find columns.
-data = np.loadtxt(vx_file)
+with open(vx_file) as f:
+    for i, line in enumerate(f):
+        if line.startswith(str(timestep)):
+            data = np.loadtxt(vx_file, skiprows=i+1, max_rows=nbins)
+            break
+
+print(data)
 # Typical ave/chunk file format: bin_center count vx ...
 # Try to find vx as the last column:
 bin_centers = data[:, 0]
