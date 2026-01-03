@@ -4,6 +4,11 @@
 
 1. Set the environment variable ´LAMMPS_DIR´ to the directory of the LAMMPS repository, which should have subdirectories src, build, etc.
 
+## Notes
+
+- In a simulation of the Dumbbell model under simple shear flow (big_run.txt), the $xy$-component of the configuration tensor became negative instead of positive. I don't know the reason for this. But it is good that there is at least
+a visible drift away from zero.
+
 ## Remarks about LAMMPS
 
 - LAMMPS tries to keep the system at constant temperature. If we have active forces in the particles, they

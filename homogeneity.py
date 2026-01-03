@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
+import sys
 
 # -------- user params (edit) ----------
 vx_file = "vx_profile.dat"     # output from ave/chunk (time-averaged)
@@ -14,7 +15,7 @@ nbins = 100
 gdot_imposed = 0.01            # if you used erate
 exclude_edge_frac = 0.1        # fraction of top/bottom bins to exclude from "bulk" fit
 
-timestep = 66000
+timestep = int(sys.argv[1])
 # --------------------------------------
 
 # --- helper: read vx_profile.dat (adapt if file header differs) ---
@@ -77,76 +78,70 @@ print("Saved vx_profile_check.png")
 cols = ["id", "x", "y", "z", "vx", "vy", "vz", "sxy"]
 # read as whitespace delim, skip comment lines starting with ITEM or loop
 # Fast but simple parser (may need adaptation):
-frames = []
+
 with open(dump_file, 'r') as f:
     block = []
+    timestep_line = False
+    correct_timestep = False
     for line in f:
         line = line.strip()
-        if line == "":
-            continue
-        # detect start of a snapshot by non-numeric token "ITEM:" or "timestep"
-        if line.startswith("ITEM: TIMESTEP") or line.startswith("ITEM: TIMESTEPS") or line.startswith("ITEM:"):
-            # ignore header tokens
-            block = []
-            continue
-        parts = line.split()
-        # lines with 8 floats -> data
-        if len(parts) == len(cols):
-            block.append([float(x) for x in parts])
-        else:
-            # skip unexpected lines
-            continue
-        # rough heuristic: if block reaches expected #atoms, treat as a frame
-        # If you know natoms, set natoms variable above and check length
-    # block parsing may fail for different dump formats; if so adapt parser
 
-# If very simple single-frame dump, convert block to array:
-if len(block) > 0:
-    arr = np.array(block)
-    df = pd.DataFrame(arr, columns=cols)
-    # Bin by y
-    ys = df['y'].values
-    sxy = df['sxy'].values
-    bins = np.linspace(0, Ly, nbins+1)
-    bin_idx = np.digitize(ys, bins) - 1
-    sigma_bins = np.zeros(nbins)
-    counts = np.zeros(nbins)
-    for i in range(nbins):
-        mask = (bin_idx == i)
-        counts[i] = np.sum(mask)
-        if counts[i] > 0:
-            # LAMMPS per-atom stress units: be careful; we compute bin-averaged stress
-            # Sigma_xy(bin) = - (sum over atoms of sxy_atom) / V_bin
-            Vbin = Lx * (bins[i+1]-bins[i]) * Lz
-            sigma_bins[i] = - np.sum(sxy[mask]) / Vbin
-        else:
-            sigma_bins[i] = np.nan
+        if timestep_line:
+            assert (str(int(line)) == line)
+            correct_timestep = int(line) == timestep
+            if int(line) > timestep:
+                break
+        elif correct_timestep:
+            parts = line.split()
+            if len(parts) == len(cols):
+                block.append([float(x) for x in parts])
 
-    # plot sigma_xy(y)
-    bin_centers_s = 0.5*(bins[:-1]+bins[1:])
-    plt.figure()
-    plt.plot(bin_centers_s, sigma_bins, 'o-')
-    plt.xlabel('y')
-    plt.ylabel(r'$\sigma_{xy}(y)$')
-    plt.savefig("sigma_xy_profile.png", dpi=200)
-    print("Saved sigma_xy_profile.png")
+        timestep_line = False
+        if line == "ITEM: TIMESTEP":
+            timestep_line = True
 
-    # Compare sigma uniformity
-    finite = np.isfinite(sigma_bins)
-    sig_mean = np.nanmean(sigma_bins[finite])
-    sig_std = np.nanstd(sigma_bins[finite])
-    print(
-        f"Mean sigma_xy = {sig_mean:.3e}, std = {sig_std:.3e}, rel std = {sig_std/abs(sig_mean):.3f}")
+arr = np.array(block)
+df = pd.DataFrame(arr, columns=cols)
+# Bin by y
+ys = df['y'].values
+sxy = df['sxy'].values
+bins = np.linspace(0, Ly, nbins+1)
+bin_idx = np.digitize(ys, bins) - 1
+sigma_bins = np.zeros(nbins)
+counts = np.zeros(nbins)
+for i in range(nbins):
+    mask = (bin_idx == i)
+    counts[i] = np.sum(mask)
+    if counts[i] > 0:
+        # LAMMPS per-atom stress units: be careful; we compute bin-averaged stress
+        # Sigma_xy(bin) = - (sum over atoms of sxy_atom) / V_bin
+        Vbin = Lx * (bins[i+1]-bins[i]) * Lz
+        sigma_bins[i] = - np.sum(sxy[mask]) / Vbin
+    else:
+        sigma_bins[i] = np.nan
 
-    # Optionally compute local eta(y) = sigma_xy(y) / shear_rate_local
-    # If you assume shear_rate_local ~= measured_gdot, compute eta(y):
-    eta_local = sigma_bins / measured_gdot
-    plt.figure()
-    plt.plot(bin_centers_s, eta_local, 'o-')
-    plt.xlabel('y')
-    plt.ylabel(r'$\eta(y)$')
-    plt.savefig("eta_profile.png")
-    print("Saved eta_profile.png")
-else:
-    print("No dump frames parsed. If your dump format differs, adapt parser. "
-          "Alternatively dump in a very simple whitespace format (no ITEM headers) or give natoms to stop per-frame parsing.")
+# plot sigma_xy(y)
+bin_centers_s = 0.5*(bins[:-1]+bins[1:])
+plt.figure()
+plt.plot(bin_centers_s, sigma_bins, 'o-')
+plt.xlabel('y')
+plt.ylabel(r'$\sigma_{xy}(y)$')
+plt.savefig("sigma_xy_profile.png", dpi=200)
+print("Saved sigma_xy_profile.png")
+
+# Compare sigma uniformity
+finite = np.isfinite(sigma_bins)
+sig_mean = np.nanmean(sigma_bins[finite])
+sig_std = np.nanstd(sigma_bins[finite])
+print(
+    f"Mean sigma_xy = {sig_mean:.3e}, std = {sig_std:.3e}, rel std = {sig_std/abs(sig_mean):.3f}")
+
+# Optionally compute local eta(y) = sigma_xy(y) / shear_rate_local
+# If you assume shear_rate_local ~= measured_gdot, compute eta(y):
+eta_local = sigma_bins / measured_gdot
+plt.figure()
+plt.plot(bin_centers_s, eta_local, 'o-')
+plt.xlabel('y')
+plt.ylabel(r'$\eta(y)$')
+plt.savefig("eta_profile.png")
+print("Saved eta_profile.png")

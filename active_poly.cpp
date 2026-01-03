@@ -17,16 +17,16 @@ using namespace std;
 constexpr std::array<char, 3> variables = {{'x', 'y', 'z'}};
 
 constexpr double rho = 0.02;
-constexpr double l = 50;
+constexpr double l = 100;
 constexpr double T = 1.0;
 constexpr double damp_coeff = 0.01;
 constexpr double sigma = 1.22;  // for intermolecular Lennard-Jones potential
 
-constexpr uint64_t equilibration_timesteps = 10000;
-constexpr uint64_t run_timesteps = 200000;
-constexpr double timestep = 0.001;
+constexpr uint64_t equilibration_timesteps = 20000;
+constexpr uint64_t run_timesteps = 1000000;
+constexpr double timestep = 0.005;
 
-constexpr double shear_rate = 0.0002;
+constexpr double shear_rate = 0.0001;
 
 constexpr int ybins = 100;
 
@@ -81,17 +81,19 @@ int main(int argc, char** argv) {
 
     cmd("atom_style bond");
     cmd("bond_style zero");
-    cmd("comm_modify mode single cutoff {}", 5.0);
+    cmd("comm_modify mode single cutoff {}", 10.0);
     cmd("newton on off");  // Try changing this.
 
     cmd("lattice sc {}", rho);
     cmd("region R prism 0 {} 0 {} 0 {} 0 0 0", l, l, l);
 
+    // cmd("processors 2 1 1");
+
     cmd("create_box 1 R bond/types 1 extra/bond/per/atom 2");
     cmd("molecule active_poly active_poly.txt");
     cmd("create_atoms 0 region R mol active_poly 42");
 
-    cmd("bond_coeff *");
+    cmd("bond_coeff 1");
     cmd("mass * 1");
     // inter-molecular interactions via Lennard-Jones potential
     // cmd("pair_style lj/cut {}", 2.5);
@@ -127,17 +129,17 @@ int main(int argc, char** argv) {
     cmd("compute diam all particle_diameter");
     // compute_cross_product_second_moments(lmp);
 
-    // for (auto& coord : {"x", "y", "z"}) {
-    //     cmd("variable v{} equal vcm(all, {})", coord, coord);
-    // }
+    for (auto& coord : {"x", "y", "z"}) {
+        cmd("variable v{} equal vcm(all, {})", coord, coord);
+    }
 
     cmd("velocity all create {} 196883", T);
     cmd("thermo 1000");
-    // cmd("thermo_style cus^tom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
+    // cmd("thermo_style custom step temp v_axx v_ayy v_azz v_axy v_ayz v_azx ke c_diam");
     // cmd("thermo_style custom step temp c_1x1x c_1y1y c_1x1y c_1x2x c_2x2x v_axx ke c_diam");
     // cmd("thermo_style custom step temp v_Txx v_Tyy v_Tzz v_Txy v_Txz v_Tyz c_diam");
     // cmd("thermo_style custom step temp v_Sxx v_Syy v_Szz v_Sxy v_Sxz v_Syz c_diam");
-    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z c_1y1z c_diam");
+    cmd("thermo_style custom step temp c_1x1x c_1y1y c_1z1z c_1x1y c_1x1z v_vx c_diam");
 
     cmd("timestep {}", timestep);
     cmd("run {}", equilibration_timesteps);
